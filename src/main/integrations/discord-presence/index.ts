@@ -1,4 +1,4 @@
-import playerStateStore, { PlayerState, Thumbnail, VideoDetails, VideoState } from "../../player-state-store";
+import playerStateStore, { PlayerState, Thumbnail, VideoDetails, VideoState, VideoType } from "../../player-state-store";
 import IIntegration from "../integration";
 import MemoryStore from "../../memory-store";
 import { MemoryStoreSchema } from "~shared/store/schema";
@@ -73,14 +73,24 @@ export default class DiscordPresence implements IIntegration {
         this.discordClient.clearActivity();
         return;
       }
-      const { title, author, album, id, thumbnails, durationSeconds, channelId, albumId } = this.videoDetails;
+      const { title, author, album, id, thumbnails, durationSeconds, channelId, albumId, videoType } = this.videoDetails;
       const thumbnail = getHighestResThumbnail(thumbnails);
+
+      // Hot-swap title/author logic by Riku
+      const safeTitle = title || "Unknown Title";
+      const safeAuthor = author || "Unknown Author";
+
+      const isOfficialAudio = videoType == VideoType.MusicAudio;
+
+      const stateText = isOfficialAudio ? safeAuthor : safeTitle;
+      const detailsText = isOfficialAudio ? safeTitle : safeAuthor;
+
       this.discordClient.setActivity({
         type: DiscordActivityType.Listening,
         status_display_type: 1,
-        details: stringLimit(title, 128, 2),
+        details: stringLimit(detailsText, 128, 2),
         details_url: `https://music.youtube.com/watch?v=${id}`,
-        state: stringLimit(author, 128, 2),
+        state: stringLimit(stateText, 128, 2),
         state_url: `https://music.youtube.com/channel/${channelId}`,
         timestamps: {
           start: this.videoState === VideoState.Playing ? Date.now() - this.progress * 1000 : undefined,
